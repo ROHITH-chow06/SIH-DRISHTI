@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DRISHTI - Living Map</title>
+    <!-- Leaflet CSS for Map rendering -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --panel-bg: #1e293b;
+            --accent-color: #38bdf8;
+            --accent-green: #22c55e;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        header {
+            background-color: var(--panel-bg);
+            border-bottom: 1px solid var(--border-color);
+            padding: 15px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            color: var(--accent-color);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-badge {
+            font-size: 0.75rem;
+            padding: 4px 10px;
+            border-radius: 9999px;
+            font-weight: 600;
+            text-transform: uppercase;
+            background-color: rgba(34, 197, 94, 0.15);
+            color: var(--accent-green);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--accent-green);
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+        }
+
+        .container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        #map {
+            flex: 1;
+            height: 100%;
+            background-color: #0b0f19;
+            z-index: 1;
+        }
+
+        .sidebar {
+            width: 380px;
+            background-color: var(--panel-bg);
+            border-left: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .sidebar-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .vehicle-card {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+            transition: background 0.2s;
+        }
+
+        .vehicle-card:hover {
+            background-color: rgba(255, 255, 255, 0.02);
+        }
+
+        .vehicle-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--accent-color);
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .points-pill {
+            font-size: 0.75rem;
+            background-color: rgba(56, 189, 248, 0.1);
+            color: var(--accent-color);
+            padding: 2px 8px;
+            border-radius: 12px;
+            border: 1px solid rgba(56, 189, 248, 0.2);
+        }
+
+        .telemetry-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            font-size: 0.825rem;
+        }
+
+        .metric-label {
+            color: var(--text-muted);
+        }
+
+        .metric-val {
+            font-family: monospace;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .empty-state {
+            padding: 40px 20px;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .empty-icon {
+            font-size: 2rem;
+            opacity: 0.5;
+        }
+
+        /* SVG Fallback Canvas styling when Leaflet map tiles are offline */
+        .fallback-canvas {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>DRISHTI LIVING MAP</h1>
+        <div class="status-badge">
+            <div class="pulse-dot"></div>
+            Live Tracking
+        </div>
+    </header>
+
+    <div class="container">
+        <div id="map"></div>
+        <div class="sidebar">
+            <div class="sidebar-header" style="display: flex; flex-direction: column; gap: 10px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>Tracked Vehicles</span>
+                    <button id="centerMapBtn" style="padding: 4px 8px; background: var(--accent-color); color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">Center on Deposit-5</button>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span id="gpsModeStatus" class="points-pill" style="color: var(--text-muted); background: rgba(148, 163, 184, 0.1); border: 1px solid rgba(148, 163, 184, 0.2);">
+                        REAL GPS MODE
+                    </span>
+                    <span id="corridorStatus" class="points-pill" style="color: var(--text-muted); background: rgba(148, 163, 184, 0.1);">
+                        Building road corridor...
+                    </span>
+                </div>
+            </div>
+            
+            <div class="sidebar-header" style="margin-top: 20px; font-size: 0.9em;">
+                <label style="display: flex; align-items: center; cursor: pointer;">
+                    <input type="checkbox" id="sarToggle" style="margin-right: 10px;">
+                    Sentinel-1 SAR — Deposit-5 / Pit-scale validation
+                </label>
+                <div style="font-size: 0.75em; color: var(--text-muted); margin-top: 4px; margin-left: 24px;">
+                    Prototype coverage overlay — SAR raster not locally downloaded
+                </div>
+                <div style="font-size: 0.75em; color: var(--text-muted); margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 10px;">
+                    <div><strong>DRISHTI MAP LEGEND</strong></div>
+                    <div style="margin-top: 5px;">🛰 <strong>Sentinel-1 SAR</strong><br><span style="margin-left: 18px; color: #64748b;">Deposit-5 / pit-scale validation</span></div>
+                    <div style="margin-top: 5px; color: #ffffff; opacity: 0.7;">- - - <strong>Candidate Route</strong><br><span style="margin-left: 18px; color: #64748b;">DEMO_CANDIDATE (Awaiting SAR raster)</span></div>
+                    <div style="margin-top: 5px;">📍 <strong>DEMO-ANCHORED GPS</strong><br><span style="margin-left: 18px; color: #64748b;">Phone movement projected</span></div>
+                    <div style="margin-top: 5px;">🚚 <strong>Vehicle</strong><br><span style="margin-left: 18px; color: #64748b;">Current displayed position</span></div>
+                    <div style="margin-top: 5px; color: #f59e0b;">━━ <strong>Living vehicle corridor</strong></div>
+                </div>
+            </div>
+            <div id="vehicleList">
+                <div class="empty-state">
+                    <div class="empty-icon">📡</div>
+                    <div>Waiting for vehicle GPS data...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <script>
+        let map = null;
+        let markers = {};
+        let polylines = {};
+        let corridorPolyline = null;
+        let routePolylines = {};
+        let sarOverlay = null;
+        let sarMetadata = null;
+        const vehicleColors = ['#38bdf8', '#f43f5e', '#a855f7', '#eab308', '#10b981', '#f97316'];
+
+        function getVehicleColor(id) {
+            let hash = 0;
+            for (let i = 0; i < id.length; i++) hash = id.charCodeAt(i) + ((hash << 5) - hash);
+            return vehicleColors[Math.abs(hash) % vehicleColors.length];
+        }
+
+        let deposit5Bounds = [[18.6668167, 81.1782861], [18.6973278, 81.2088583]];
+        let gpsMode = 'real';
+
+        function initMap() {
+            if (typeof L !== 'undefined') {
+                map = L.map('map').setView([17.3850, 78.4867], 13);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    maxZoom: 19,
+                    attribution: '© OpenStreetMap'
+                }).addTo(map);
+                
+                // Add persistent sar layer group
+                sarOverlay = L.layerGroup().addTo(map);
+                
+                document.getElementById('centerMapBtn').addEventListener('click', () => {
+                    if (map) map.fitBounds(deposit5Bounds);
+                });
+            } else {
+                document.getElementById('map').innerHTML = `
+                    <div class="fallback-canvas">
+                        <p>Map view ready (offline mode). Telemetry points active in sidebar.</p>
+                    </div>
+                `;
+            }
+        }
+
+        async function fetchLivingMapData() {
+            try {
+                // Fetch vehicles, corridor, and routes data concurrently
+                const [resVehicles, resCorridors, resRoutes] = await Promise.all([
+                    fetch('/api/map/vehicles'),
+                    fetch('/api/map/road_corridors'),
+                    fetch('/api/map/routes')
+                ]);
+                
+                if (!resVehicles.ok) return;
+                const vehicles = await resVehicles.json();
+                
+                // Handle Candidate Routes
+                if (resRoutes && resRoutes.ok) {
+                    const routes = await resRoutes.json();
+                    const activeRouteIds = new Set();
+                    
+                    if (map) {
+                        for (const route of routes) {
+                            activeRouteIds.add(route.route_id);
+                            
+                            const points = route.path_coordinates.map(p => [p.latitude, p.longitude]);
+                            
+                            // Determine style based on status
+                            let color = '#ffffff'; // White for candidate road
+                            let dashArray = '8, 12';
+                            let weight = 4;
+                            let opacity = 0.6;
+                            
+                            if (route.status === 'VALIDATED') {
+                                color = '#22c55e'; // Bright green when validated by a vehicle
+                                dashArray = null;
+                                opacity = 0.9;
+                                weight = 6;
+                            } else if (route.status === 'STALE') {
+                                color = '#64748b'; // Dark grey when stale
+                                dashArray = '8, 12';
+                                opacity = 0.4;
+                            }
+
+                            if (routePolylines[route.route_id]) {
+                                routePolylines[route.route_id].setLatLngs(points);
+                                routePolylines[route.route_id].setStyle({ color, dashArray, weight, opacity });
+                                routePolylines[route.route_id]._popup.setContent(`<b>Candidate Route — ${route.source}</b><br>ID: ${route.route_id}<br>Status: ${route.status}<br>Confidence: ${route.confidence.toFixed(2)}<br><i>Demo candidate route — awaiting Sentinel-1 raster extraction</i>`);
+                            } else {
+                                routePolylines[route.route_id] = L.polyline(points, {
+                                    color, dashArray, weight, opacity
+                                }).addTo(map).bindPopup(`<b>Candidate Route — ${route.source}</b><br>ID: ${route.route_id}<br>Status: ${route.status}<br>Confidence: ${route.confidence.toFixed(2)}<br><i>Demo candidate route — awaiting Sentinel-1 raster extraction</i>`);
+                            }
+                        }
+                        
+                        // Remove routes that no longer exist
+                        for (const rId of Object.keys(routePolylines)) {
+                            if (!activeRouteIds.has(rId)) {
+                                map.removeLayer(routePolylines[rId]);
+                                delete routePolylines[rId];
+                            }
+                        }
+                    }
+                }
+                
+                // Handle Corridor Layer
+                if (resCorridors.ok) {
+                    const corridorData = await resCorridors.json();
+                    const corridorStatusEl = document.getElementById('corridorStatus');
+                    
+                    if (corridorData.length < 2) {
+                        corridorStatusEl.textContent = 'Building road corridor...';
+                        corridorStatusEl.style.color = 'var(--text-muted)';
+                        corridorStatusEl.style.background = 'rgba(148, 163, 184, 0.1)';
+                    } else {
+                        corridorStatusEl.textContent = `Road Corridor Active (${corridorData.length} pts)`;
+                        corridorStatusEl.style.color = '#f59e0b';
+                        corridorStatusEl.style.background = 'rgba(245, 158, 11, 0.1)';
+                        corridorStatusEl.style.border = '1px solid rgba(245, 158, 11, 0.2)';
+                        
+                        if (map) {
+                            if (corridorPolyline) {
+                                map.removeLayer(corridorPolyline);
+                            }
+                            
+                            const polylinesData = [];
+                            let currentLine = [ [corridorData[0].latitude, corridorData[0].longitude] ];
+                            let currentIsStale = corridorData[0].is_stale;
+                            
+                            for (let i = 1; i < corridorData.length; i++) {
+                                const pt = corridorData[i];
+                                currentLine.push([pt.latitude, pt.longitude]);
+                                if (pt.is_stale !== currentIsStale) {
+                                    polylinesData.push({ points: currentLine, is_stale: currentIsStale });
+                                    currentLine = [ [pt.latitude, pt.longitude] ];
+                                    currentIsStale = pt.is_stale;
+                                }
+                            }
+                            polylinesData.push({ points: currentLine, is_stale: currentIsStale });
+                            
+                            corridorPolyline = L.featureGroup(
+                                polylinesData.map(line => L.polyline(line.points, {
+                                    color: line.is_stale ? '#94a3b8' : '#f59e0b',
+                                    weight: 8,
+                                    opacity: line.is_stale ? 0.3 : 0.8,
+                                    dashArray: null // Solid line for living trace
+                                }))
+                            ).addTo(map);
+                        }
+                    }
+                }
+
+                const vehicleIds = Object.keys(vehicles);
+                const vehicleListEl = document.getElementById('vehicleList');
+
+                if (vehicleIds.length === 0) {
+                    vehicleListEl.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-icon">📡</div>
+                            <div>Waiting for vehicle GPS data...</div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                let html = '';
+                let bounds = [];
+
+                for (const vehicleId of vehicleIds) {
+                    const pos = vehicles[vehicleId];
+                    if (!pos) continue;
+
+                    // Fetch trace for each vehicle
+                    const resTrace = await fetch(`/api/map/trace/${encodeURIComponent(vehicleId)}`);
+                    const trace = resTrace.ok ? await resTrace.json() : [];
+                    const color = getVehicleColor(vehicleId);
+
+                    html += `
+                        <div class="vehicle-card">
+                            <div class="vehicle-title">
+                                <span>${vehicleId}</span>
+                                <span class="points-pill">${trace.length} points</span>
+                            </div>
+                            <div class="telemetry-grid" style="grid-template-columns: 1fr;">
+                                <div style="margin-bottom: 4px;"><span class="metric-label">Display mode:</span> <span class="metric-val" style="color: ${gpsMode === 'demo_anchored' ? '#ef4444' : '#22c55e'}">${gpsMode === 'demo_anchored' ? 'DEMO-ANCHORED' : 'REAL'}</span></div>
+                                <div><span class="metric-label">Displayed position:</span> <span class="metric-val">${pos.latitude.toFixed(6)}, ${pos.longitude.toFixed(6)}</span></div>
+                                <div><span class="metric-label">Original phone GPS:</span> <span class="metric-val">${pos.metadata && pos.metadata.original_position ? pos.metadata.original_position.latitude.toFixed(6) + ', ' + pos.metadata.original_position.longitude.toFixed(6) : (gpsMode === 'real' ? pos.latitude.toFixed(6) + ', ' + pos.longitude.toFixed(6) : 'N/A')}</span></div>
+                            </div>
+                        </div>
+                    `;
+
+                    // Update Leaflet map layers
+                    if (map && pos.latitude && pos.longitude) {
+                        const latLng = [pos.latitude, pos.longitude];
+                        bounds.push(latLng);
+
+                        // Trace polyline
+                        const latLngs = trace.map(pt => [pt.latitude, pt.longitude]);
+                        if (polylines[vehicleId]) {
+                            polylines[vehicleId].setLatLngs(latLngs);
+                        } else {
+                            polylines[vehicleId] = L.polyline(latLngs, { color: color, weight: 4, opacity: 0.8 }).addTo(map);
+                        }
+
+                        // Marker
+                        if (markers[vehicleId]) {
+                            markers[vehicleId].setLatLng(latLng);
+                        } else {
+                            markers[vehicleId] = L.circleMarker(latLng, {
+                                radius: 8,
+                                fillColor: color,
+                                color: '#ffffff',
+                                weight: 2,
+                                opacity: 1,
+                                fillOpacity: 0.9
+                            }).addTo(map).bindPopup(`<b>${vehicleId}</b><br>Lat: ${pos.latitude}<br>Lon: ${pos.longitude}`);
+                        }
+                    }
+                }
+
+                vehicleListEl.innerHTML = html;
+
+            } catch (err) {
+                console.error('Error fetching Living Map data:', err);
+            }
+        }
+
+        // Initialize & start auto-refresh
+        window.addEventListener('DOMContentLoaded', async () => {
+            initMap();
+            
+            // Check GPS mode
+            try {
+                const configRes = await fetch('/api/config/gps_mode');
+                const configData = await configRes.json();
+                gpsMode = configData.mode;
+                
+                const modeEl = document.getElementById('gpsModeStatus');
+                if(gpsMode === 'demo_anchored') {
+                    modeEl.textContent = "DEMO-ANCHORED GPS";
+                    modeEl.style.color = "#ef4444";
+                    modeEl.style.background = "rgba(239, 68, 68, 0.1)";
+                    modeEl.style.border = "1px solid rgba(239, 68, 68, 0.2)";
+                    if (map) map.fitBounds(deposit5Bounds);
+                }
+            } catch (e) {}
+
+            // Fetch SAR metadata
+            try {
+                const sarRes = await fetch('/api/map/sar/metadata');
+                sarMetadata = await sarRes.json();
+                
+                if (sarMetadata) {
+                    const bounds = [[sarMetadata.bbox[1], sarMetadata.bbox[0]], [sarMetadata.bbox[3], sarMetadata.bbox[2]]];
+                    L.rectangle(bounds, {color: "#4f46e5", weight: 2, fillOpacity: 0.2, fillColor: '#94a3b8'})
+                     .bindPopup("<b>DEPOSIT-5 SAR COVERAGE / DEMO AREA</b><br>Sentinel-1 / Prototype footprint")
+                     .addTo(sarOverlay);
+                }
+            } catch (e) {}
+
+            document.getElementById('sarToggle').addEventListener('change', (e) => {
+                if (e.target.checked && map) {
+                    map.addLayer(sarOverlay);
+                } else if (map) {
+                    map.removeLayer(sarOverlay);
+                }
+            });
+            
+            // Default hidden
+            if (map) {
+                map.removeLayer(sarOverlay);
+            }
+
+            fetchLivingMapData();
+            setInterval(fetchLivingMapData, 1000);
+        });
+    </script>
+</body>
+</html>

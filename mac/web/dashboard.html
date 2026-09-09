@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>DRISHTI - Operational Dashboard</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --panel-bg: #1e293b;
+            --accent-color: #38bdf8;
+            --accent-green: #22c55e;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        header {
+            background-color: var(--panel-bg);
+            border-bottom: 1px solid var(--border-color);
+            padding: 10px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 {
+            font-size: 1.25rem;
+            color: var(--accent-color);
+            margin: 0;
+        }
+
+        .container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        #map {
+            flex: 1;
+            background-color: #0b0f19;
+            z-index: 1;
+        }
+
+        .sidebar {
+            width: 400px;
+            background-color: var(--panel-bg);
+            border-left: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .panel {
+            padding: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .panel h2 {
+            font-size: 1rem;
+            color: var(--accent-color);
+            margin: 0 0 10px 0;
+            text-transform: uppercase;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+
+        .btn-group button {
+            flex: 1;
+            padding: 8px;
+            background: var(--bg-color);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+
+        .btn-group button.active {
+            background: var(--accent-color);
+            border-color: var(--accent-color);
+            font-weight: bold;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            font-size: 0.9rem;
+        }
+
+        .stat-label {
+            color: var(--text-muted);
+        }
+
+        .stat-value {
+            font-weight: bold;
+        }
+
+        .ab-demo {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .ab-box {
+            flex: 1;
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 10px;
+            text-align: center;
+        }
+
+        .ab-speed {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+
+        .alert-log {
+            max-height: 150px;
+            overflow-y: auto;
+            font-size: 0.8rem;
+            background: #000;
+            padding: 10px;
+            border-radius: 4px;
+        }
+
+        .alert-item {
+            margin-bottom: 5px;
+            border-bottom: 1px dashed #333;
+            padding-bottom: 5px;
+        }
+
+        .alert-time {
+            color: var(--text-muted);
+        }
+
+        .alert-type {
+            font-weight: bold;
+        }
+
+        .alert-CRITICAL {
+            color: var(--danger);
+        }
+
+        .alert-WARNING {
+            color: var(--warning);
+        }
+
+        .alert-INFO {
+            color: var(--accent-color);
+        }
+
+        .nav-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            margin-left: 15px;
+            font-size: 0.9rem;
+        }
+
+        .nav-links a:hover {
+            color: white;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>DRISHTI INTEGRATED DASHBOARD</h1>
+        <div class="nav-links">
+            <a href="/">Dashboard</a>
+            <a href="/strip" target="_blank">Cab Strip View ↗</a>
+        </div>
+    </header>
+
+    <div class="container">
+        <div id="map"></div>
+
+        <div class="sidebar">
+            <div class="panel">
+                <h2>Simulation Controls</h2>
+                <div class="stat-label" style="font-size: 0.75rem; margin-bottom: 8px;">SIMULATION / DEMO (Backend
+                    State)</div>
+                <div class="btn-group" id="vis-group">
+                    <button onclick="setCondition('visibility', 'CLEAR')">CLEAR</button>
+                    <button onclick="setCondition('visibility', 'FOG')">FOG</button>
+                </div>
+                <div class="btn-group" id="road-group">
+                    <button onclick="setCondition('road', 'DRY')">DRY ROAD</button>
+                    <button onclick="setCondition('road', 'WET')">WET ROAD</button>
+                </div>
+                <div class="btn-group" id="obs-group">
+                    <button onclick="setCondition('obstacle', 'NONE')">CLR OBSTACLE</button>
+                    <button onclick="setCondition('obstacle', 'PEDESTRIAN')">DROP PEDESTRIAN</button>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h2>Governor State</h2>
+                <div class="stat-row">
+                    <span class="stat-label">Governor</span>
+                    <span class="stat-value" id="gov-state" style="font-size: 1.5rem; text-transform: uppercase;">--</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Visibility Limit</span>
+                    <span class="stat-value" id="vis-limit">--</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Road Limit</span>
+                    <span class="stat-value" id="road-limit">--</span>
+                </div>
+                <div class="stat-row" style="margin-top: 10px; border-top: 1px solid var(--border-color); padding-top: 10px;">
+                    <span class="stat-label" style="font-size: 1.1rem; padding-top: 5px;">Safe Speed</span>
+                    <span class="stat-value" id="final-speed"
+                        style="color: var(--accent-green); font-size: 2rem;">--</span>
+                </div>
+                <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 5px;" id="gov-reason">--</div>
+            </div>
+
+            <div class="panel">
+                <h2>A/B Demonstration</h2>
+                <div class="stat-label" style="font-size: 0.75rem; text-align: center;">SIMULATION / DEMO</div>
+                <div class="ab-demo">
+                    <div class="ab-box">
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">EYESIGHT ONLY</div>
+                        <div class="ab-speed" style="color: var(--warning);">5 <span
+                                style="font-size: 0.4em;">km/h</span></div>
+                    </div>
+                    <div class="ab-box" style="border-color: var(--accent-green);">
+                        <div style="font-size: 0.75rem; color: var(--accent-green);">WITH DRISHTI</div>
+                        <div class="ab-speed" id="drishti-speed" style="color: var(--accent-green);">-- <span
+                                style="font-size: 0.4em;">km/h</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <h2 style="margin: 0;">Active Vehicle</h2>
+                    <button onclick="centerOnVehicle()" style="background: var(--panel-bg); color: var(--accent-color); border: 1px solid var(--accent-color); border-radius: 4px; font-size: 0.75rem; padding: 2px 8px; cursor: pointer;">CENTER MAP</button>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Selected Vehicle</span>
+                    <select id="vehicle-select" onchange="onVehicleChange()"
+                        style="background: #000; color: white; border: 1px solid #333; padding: 2px;">
+                        <option value="">Waiting for GPS...</option>
+                    </select>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">GPS Position</span>
+                    <span class="stat-value" id="veh-gps">--</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Route Provenance</span>
+                    <span class="stat-value">DEMO_CANDIDATE</span>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h2>Map Legend</h2>
+                <div style="font-size: 0.8rem; line-height: 1.4;">
+                    <div style="color: var(--accent-green); font-weight: bold;">🟢 VALIDATED LIVING ROAD CORRIDOR</div>
+                    <div style="color: var(--text-muted); margin-bottom: 5px; margin-left: 20px;">Travelled & observed by vehicles</div>
+                    
+                    <div style="color: #fff; font-weight: bold;">⚪ CANDIDATE ROUTE</div>
+                    <div style="color: var(--text-muted); margin-bottom: 5px; margin-left: 20px;">DEMO_CANDIDATE</div>
+                    
+                    <div style="color: var(--accent-color); font-weight: bold;">🔵 RAW VEHICLE GPS TRACE</div>
+                    <div style="color: var(--text-muted); margin-bottom: 5px; margin-left: 20px;">Original GPS observations</div>
+                    
+                    <div style="font-weight: bold;">🚚 VEHICLE</div>
+                    <div style="color: var(--text-muted); margin-bottom: 5px; margin-left: 20px;">Current GPS position</div>
+                    
+                    <div style="color: var(--warning); font-weight: bold;">⚠ SIMULATED OBSTACLE</div>
+                    <div style="color: var(--text-muted); margin-bottom: 5px; margin-left: 20px;">Software demonstration only</div>
+                    
+                    <div style="color: #94a3b8; font-weight: bold;">🌫 SIMULATED FOG</div>
+                    <div style="color: var(--text-muted); margin-left: 20px;">Software demonstration only</div>
+                </div>
+            </div>
+
+            <div class="panel" style="flex: 1;">
+                <h2>Alert Log</h2>
+                <div class="alert-log" id="alert-log">
+                    <div style="color: var(--text-muted);">Loading alerts...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <script>
+        let map = null;
+        let vehicleData = {};
+        let markers = {};
+        let polylines = {};
+        let corridorPolyline = null;
+        let routePolylines = {};
+        let fogOverlay = null;
+
+        let conditions = { visibility: "CLEAR", road: "DRY", obstacle: "NONE" };
+
+        function getArrowIcon(type, heading) {
+            const color = type === 'active' ? '#22c55e' : '#94a3b8';
+            return L.divIcon({
+                html: `<div style="transform: rotate(${heading || 0}deg); color: ${color}; font-size: 24px; text-shadow: 0 0 4px #000;">⬆</div>`,
+                className: 'vehicle-arrow-icon',
+                iconSize: [24, 24],
+                iconAnchor: [12, 12]
+            });
+        }
+
+        function centerOnVehicle() {
+            const selectedVid = document.getElementById('vehicle-select').value;
+            if (selectedVid && vehicleData[selectedVid]) {
+                const pos = vehicleData[selectedVid];
+                map.panTo([pos.latitude, pos.longitude]);
+            }
+        }
+
+        function initMap() {
+            map = L.map('map').setView([18.68, 81.19], 14);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19, attribution: '© OpenStreetMap'
+            }).addTo(map);
+
+            // Fog layer (Simulated Fog Heatmap)
+            fogOverlay = L.rectangle([[18.65, 81.15], [18.72, 81.25]], {
+                color: '#e2e8f0', weight: 0, fillOpacity: 0.0, interactive: false
+            }).addTo(map);
+            fogOverlay.bindTooltip("SIMULATED FOG", { permanent: true, direction: "center", className: "fog-label" }).closeTooltip();
+        }
+
+        async function setCondition(key, value) {
+            conditions[key] = value;
+            try {
+                await fetch('/api/simulator/conditions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(conditions)
+                });
+                fetchState();
+            } catch (e) { }
+        }
+
+        function updateButtons() {
+            document.querySelectorAll('#vis-group button').forEach(b => b.classList.toggle('active', b.innerText === conditions.visibility));
+            document.querySelectorAll('#road-group button').forEach(b => b.classList.toggle('active', b.innerText.includes(conditions.road)));
+            document.querySelectorAll('#obs-group button').forEach(b => b.classList.toggle('active', b.innerText.includes(conditions.obstacle) || (conditions.obstacle === 'NONE' && b.innerText === 'CLR OBSTACLE')));
+        }
+
+        async function fetchState() {
+            try {
+                const simRes = await fetch('/api/simulator/state');
+                conditions = await simRes.json();
+                updateButtons();
+
+                if (conditions.visibility === 'FOG') {
+                    fogOverlay.setStyle({ fillOpacity: 0.4 });
+                    fogOverlay.openTooltip();
+                } else {
+                    fogOverlay.setStyle({ fillOpacity: 0.0 });
+                    fogOverlay.closeTooltip();
+                }
+
+                const govRes = await fetch('/api/governor/state');
+                const gov = await govRes.json();
+                document.getElementById('gov-state').innerText = gov.state;
+                document.getElementById('vis-limit').innerText = gov.visibility_limit_kmh + ' km/h';
+                document.getElementById('road-limit').innerText = gov.road_condition_limit_kmh + ' km/h';
+                document.getElementById('final-speed').innerText = gov.final_speed_limit_kmh + ' km/h';
+                document.getElementById('gov-reason').innerText = 'Reason: ' + gov.reason;
+                document.getElementById('drishti-speed').innerHTML = gov.final_speed_limit_kmh + ' <span style="font-size: 0.4em;">km/h</span>';
+
+                const alertsRes = await fetch('/api/alerts');
+                const alerts = await alertsRes.json();
+                const logEl = document.getElementById('alert-log');
+                logEl.innerHTML = alerts.map(a => `
+                    <div class="alert-item">
+                        <span class="alert-time">[${new Date(a.timestamp).toLocaleTimeString()}]</span>
+                        <span class="alert-type alert-${a.type}">${a.type}:</span>
+                        <span>${a.message}</span>
+                        ${a.vehicle_id ? `(Vehicle: ${a.vehicle_id})` : ''}
+                    </div>
+                `).join('');
+
+            } catch (e) { }
+        }
+
+        async function fetchMapData() {
+            try {
+                const [resVeh, resRoutes, resCorr] = await Promise.all([
+                    fetch('/api/map/vehicles'),
+                    fetch('/api/map/routes'),
+                    fetch('/api/map/road_corridors')
+                ]);
+
+                vehicleData = await resVeh.json();
+                const vSelect = document.getElementById('vehicle-select');
+                const currentVal = vSelect.value;
+                const vids = Object.keys(vehicleData);
+
+                if (vids.length > 0) {
+                    vSelect.innerHTML = vids.map(id => `<option value="${id}">${id}</option>`).join('');
+                    if (vids.includes(currentVal)) vSelect.value = currentVal;
+                } else {
+                    vSelect.innerHTML = `<option value="">Waiting for GPS...</option>`;
+                }
+
+                renderMapVehicles();
+
+                // Corridors
+                if (resCorr.ok) {
+                    const corridorData = await resCorr.json();
+                    if (corridorPolyline) map.removeLayer(corridorPolyline);
+
+                    if (corridorData.length > 1) {
+                        const polylinesData = [];
+                        let currentLine = [[corridorData[0].latitude, corridorData[0].longitude]];
+                        let currentIsStale = corridorData[0].is_stale;
+                        for (let i = 1; i < corridorData.length; i++) {
+                            const pt = corridorData[i];
+                            currentLine.push([pt.latitude, pt.longitude]);
+                            if (pt.is_stale !== currentIsStale) {
+                                polylinesData.push({ points: currentLine, is_stale: currentIsStale });
+                                currentLine = [[pt.latitude, pt.longitude]];
+                                currentIsStale = pt.is_stale;
+                            }
+                        }
+                        polylinesData.push({ points: currentLine, is_stale: currentIsStale });
+                        corridorPolyline = L.featureGroup(
+                            polylinesData.map(line => L.polyline(line.points, {
+                                color: line.is_stale ? '#94a3b8' : '#f59e0b',
+                                weight: 6, opacity: line.is_stale ? 0.3 : 0.8
+                            }))
+                        ).addTo(map);
+                    }
+                }
+
+                // Routes
+                if (resRoutes.ok) {
+                    const routes = await resRoutes.json();
+                    const activeRouteIds = new Set();
+                    for (const route of routes) {
+                        activeRouteIds.add(route.route_id);
+                        const points = route.path_coordinates.map(p => [p.latitude, p.longitude]);
+                        const color = route.status === 'VALIDATED' ? '#22c55e' : (route.status === 'STALE' ? '#64748b' : '#ffffff');
+                        const dashArray = route.status === 'VALIDATED' ? null : '8, 12';
+
+                        if (routePolylines[route.route_id]) {
+                            routePolylines[route.route_id].setLatLngs(points);
+                            routePolylines[route.route_id].setStyle({ color, dashArray });
+                        } else {
+                            routePolylines[route.route_id] = L.polyline(points, {
+                                color, dashArray, weight: 4, opacity: 0.7
+                            }).addTo(map);
+                        }
+                    }
+                    for (const rId of Object.keys(routePolylines)) {
+                        if (!activeRouteIds.has(rId)) {
+                            map.removeLayer(routePolylines[rId]);
+                            delete routePolylines[rId];
+                        }
+                    }
+                }
+            } catch (e) { }
+        }
+
+        async function renderMapVehicles() {
+            const selectedVid = document.getElementById('vehicle-select').value;
+            if (selectedVid && vehicleData[selectedVid]) {
+                const pos = vehicleData[selectedVid];
+                document.getElementById('veh-gps').innerText = `${pos.latitude.toFixed(5)}, ${pos.longitude.toFixed(5)}`;
+            } else {
+                document.getElementById('veh-gps').innerText = '--';
+            }
+
+            for (const vid of Object.keys(vehicleData)) {
+                const pos = vehicleData[vid];
+                if (!pos) continue;
+
+                const latLng = [pos.latitude, pos.longitude];
+
+                if (markers[vid]) {
+                    markers[vid].setLatLng(latLng);
+                } else {
+                    markers[vid] = L.marker(latLng, {
+                        icon: getArrowIcon('active', 0)
+                    }).addTo(map).bindPopup(`<b>${vid}</b>`);
+                }
+
+                // Trace
+                fetch(`/api/map/trace/${vid}`).then(r => r.json()).then(trace => {
+                    const latLngs = trace.map(pt => [pt.latitude, pt.longitude]);
+                    if (polylines[vid]) {
+                        polylines[vid].setLatLngs(latLngs);
+                    } else {
+                        polylines[vid] = L.polyline(latLngs, { color: '#0ea5e9', weight: 4, opacity: 0.8 }).addTo(map);
+                    }
+                    
+                    // If we have a trace and this is the selected vehicle, update its heading based on the last two points
+                    if (trace.length > 1 && markers[vid]) {
+                        const p1 = trace[trace.length - 2];
+                        const p2 = trace[trace.length - 1];
+                        const heading = Math.atan2(p2.longitude - p1.longitude, p2.latitude - p1.latitude) * 180 / Math.PI;
+                        markers[vid].setIcon(getArrowIcon(vid === selectedVid ? 'active' : 'inactive', heading));
+                    }
+                }).catch(e => console.error(e));
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initMap();
+            fetchState();
+            fetchMapData();
+            setInterval(fetchState, 2000);
+            setInterval(fetchMapData, 1000);
+        });
+    </script>
+</body>
+
+</html>

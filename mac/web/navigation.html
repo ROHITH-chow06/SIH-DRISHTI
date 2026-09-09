@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>DRISHTI - Navigation</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        :root {
+            --bg-color: #000;
+            --panel-bg: rgba(20, 20, 24, 0.90);
+            --text-main: #fff;
+            --text-muted: #8b9bb4;
+            --accent-green: #22c55e;
+            --accent-blue: #38bdf8;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --border-color: #333;
+        }
+
+        body, html {
+            background: var(--bg-color);
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            /* To simulate 9:16 layout on desktop */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* The main navigation container for portrait lock */
+        #app-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            max-width: 450px; /* Force phone-like width on desktop */
+            background: #000;
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(0,0,0,0.8);
+        }
+
+        /* Map Container Wrapper for CSS Rotation */
+        #map-wrapper {
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            transform-origin: center center;
+            transition: transform 0.5s ease-out;
+            z-index: 1;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            background: #090a0f; /* Dark terrain */
+        }
+
+        /* Map Tile styling for dark theme */
+        .leaflet-layer,
+        .leaflet-control-zoom-in,
+        .leaflet-control-zoom-out,
+        .leaflet-control-attribution {
+            filter: invert(100%) hue-rotate(180deg) brightness(85%) contrast(110%) saturate(80%);
+        }
+
+        /* Fog Overlay */
+        .fog-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(200, 210, 220, 0.15);
+            pointer-events: none;
+            z-index: 10;
+            display: none;
+        }
+
+        /* UI Overlays */
+        .ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 100;
+            pointer-events: none; /* Let clicks pass to map where empty */
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 15px;
+            box-sizing: border-box;
+        }
+
+        /* All child elements of ui-layer should catch pointers */
+        .ui-layer > * {
+            pointer-events: auto;
+        }
+
+        /* --- TOP HEADER --- */
+        .top-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .app-title { font-weight: 900; letter-spacing: 1px; font-size: 1rem; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
+        .gps-badge {
+            background: rgba(0,0,0,0.6);
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            color: var(--accent-green);
+            border: 1px solid var(--border-color);
+        }
+
+        /* --- MANEUVER CARD --- */
+        .maneuver-card {
+            background: var(--accent-blue);
+            color: #000;
+            border-radius: 16px;
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.6);
+            display: none; /* Hidden until route active */
+        }
+        .maneuver-icon { font-size: 2.5rem; font-weight: bold; }
+        .maneuver-details { display: flex; flex-direction: column; }
+        .maneuver-dist { font-size: 1.5rem; font-weight: 900; }
+        .maneuver-text { font-size: 0.9rem; font-weight: bold; text-transform: uppercase; }
+
+        /* --- FLOATING CONTROLS (Middle Right) --- */
+        .floating-controls {
+            position: absolute;
+            right: 15px;
+            bottom: 300px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .round-btn {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background: var(--panel-bg);
+            border: 1px solid #444;
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.2rem;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+            cursor: pointer;
+            backdrop-filter: blur(5px);
+        }
+        .round-btn:hover { background: #333; }
+        .round-btn.active { color: var(--accent-blue); border-color: var(--accent-blue); }
+
+        /* --- BOTTOM AREA --- */
+        .bottom-area {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        /* Nearby Vehicles Panel */
+        .nearby-panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 10px;
+            backdrop-filter: blur(5px);
+        }
+        .nearby-title { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; font-weight: bold; }
+        .nearby-list { display: flex; flex-direction: column; gap: 5px; max-height: 80px; overflow-y: auto; }
+        .nearby-item {
+            background: #222;
+            padding: 6px 10px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+            border-left: 3px solid var(--danger);
+        }
+
+        /* Main Info Panel */
+        .info-panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 15px;
+            backdrop-filter: blur(10px);
+        }
+        .dest-row { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 12px; }
+        .dest-select {
+            background: transparent;
+            color: #fff;
+            border: none;
+            font-size: 1.2rem;
+            font-weight: 800;
+            outline: none;
+            appearance: none;
+            border-bottom: 1px dashed #666;
+            padding-bottom: 2px;
+            width: 100%;
+        }
+        .dest-dist { font-size: 1.2rem; font-weight: bold; color: var(--accent-green); white-space: nowrap; margin-left: 10px;}
+
+        .safety-circles {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 15px;
+            border-top: 1px dashed #444;
+            padding-top: 15px;
+        }
+        .circle-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .circle-indicator {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: #111;
+            border: 4px solid #333;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
+            transition: all 0.3s;
+        }
+        .circle-indicator.green { border-color: var(--accent-green); color: var(--accent-green); box-shadow: 0 0 15px rgba(0,255,100,0.2), inset 0 0 10px rgba(0,0,0,0.8); }
+        .circle-indicator.amber { border-color: var(--warning); color: var(--warning); box-shadow: 0 0 15px rgba(255,180,0,0.2), inset 0 0 10px rgba(0,0,0,0.8); }
+        .circle-indicator.red { border-color: var(--danger); color: var(--danger); box-shadow: 0 0 15px rgba(255,50,50,0.4), inset 0 0 10px rgba(0,0,0,0.8); }
+        
+        .circle-indicator i { font-size: 3rem; }
+
+        .audio-unlock-banner {
+            position: absolute;
+            top: 70px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #f59e0b;
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            z-index: 3000;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            cursor: pointer;
+            transition: opacity 0.3s;
+        }
+
+        .circle-value { font-size: 1.8rem; font-weight: 900; line-height: 1; }
+        .circle-sub { font-size: 0.8rem; font-weight: bold; margin-top: 2px; }
+        .circle-symbol { font-size: 2.8rem; margin-bottom: -2px; }
+        .circle-label { font-size: 0.75rem; color: #888; text-transform: uppercase; margin-top: 8px; font-weight: bold; letter-spacing: 1px; }
+
+        .debug-panel {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 5px;
+            border-radius: 5px;
+            font-size: 0.6rem;
+            color: #888;
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        /* Arrow markers */
+        .custom-arrow {
+            /* Since the map rotates negatively, we must inverse-rotate the markers to keep them upright relative to the map, but then apply their own heading.
+               Actually, Leaflet markers exist inside the rotated map.
+               If map is rotated -30deg. A marker heading North (0deg) should appear pointing UP on the screen.
+               Marker transform = heading. Since map is -30deg, marker relative to screen is heading - 30.
+               So we don't need to counter-rotate if we want "UP" to be the vehicle heading.
+               Wait, if the map rotates -heading, the vehicle marker (heading) will naturally point UP!
+             */
+        }
+        .arrow-icon {
+            width: 0;
+            height: 0;
+            border-left: 12px solid transparent;
+            border-right: 12px solid transparent;
+            border-bottom: 30px solid;
+            filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.8));
+            transform-origin: 50% 50%;
+        }
+        .arrow-green { border-bottom-color: var(--accent-green); }
+        .arrow-red { border-bottom-color: var(--danger); }
+
+    </style>
+</head>
+<body>
+    <div class="debug-panel">
+        <div id="dbg-gps">GPS: UNKNOWN</div>
+        <div id="dbg-map">MAP: UNKNOWN</div>
+    </div>
+
+<div id="app-container">
+    <div id="map-wrapper">
+        <div id="map"></div>
+    </div>
+    <div class="fog-overlay" id="fog-overlay"></div>
+
+    <div class="ui-layer">
+        <!-- Top Area -->
+        <div>
+            <div class="top-header">
+                <div class="app-title">DRISHTI</div>
+                <select id="vehicle-select" style="background:transparent; color:#fff; border:none; font-weight:bold;"></select>
+                <div class="gps-badge" id="gps-status">GPS ● LIVE</div>
+            </div>
+
+            <div id="audio-banner" class="audio-unlock-banner">TAP TO ENABLE ALERTS 🔊</div>
+
+            <div id="ghat-indicator" style="display: none; position: absolute; top: 180px; left: 50%; transform: translateX(-50%); background: rgba(255, 50, 0, 0.95); color: white; padding: 10px 24px; border-radius: 30px; font-weight: bold; font-size: 1.1rem; letter-spacing: 2px; box-shadow: 0 6px 15px rgba(255,50,0,0.6); z-index: 2000; text-align: center; border: 2px solid #ffcc00;">
+                ⚠ GHAT SECTION <br><span id="ghat-grad" style="font-weight: normal; font-size: 0.9rem;"></span>
+            </div>
+
+            <div class="maneuver-card" id="maneuver-card">
+                <div class="maneuver-icon" id="maneuver-icon">↑</div>
+                <div class="maneuver-details">
+                    <div class="maneuver-dist" id="maneuver-dist">-- m</div>
+                    <div class="maneuver-text" id="maneuver-text">FOLLOW ROUTE</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Map Control Buttons & Virtual Demo Control -->
+        <div class="floating-controls">
+            <div style="background: rgba(0,0,0,0.8); border: 1px solid var(--accent-blue); padding: 8px; border-radius: 8px; margin-bottom: 10px; font-size: 0.8rem;">
+                <div style="color: var(--accent-blue); margin-bottom: 4px; font-weight: bold;">VIRTUAL MINE</div>
+                <button id="btn-virtual-toggle" style="background: var(--accent-blue); color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; margin-right: 5px;">ON</button>
+                <button id="btn-virtual-reset" style="background: #333; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">RESET</button>
+            </div>
+            <div class="round-btn active" id="btn-follow" title="Follow Mode">⌖</div>
+            <div class="round-btn" id="btn-recenter" title="Recenter">⊙</div>
+        </div>
+
+        <!-- Bottom Area -->
+        <div class="bottom-area">
+            <div class="nearby-panel">
+                <div class="nearby-title">Nearby Vehicles (&lt;500 M)</div>
+                <div class="nearby-list" id="nearby-list">
+                    <div style="font-size:0.8rem; color:#666;">NO VEHICLES WITHIN 500 M</div>
+                </div>
+            </div>
+
+            <div class="info-panel">
+                <div class="dest-row">
+                    <div style="flex-grow: 1;">
+                        <select id="dest-select" class="dest-select">
+                            <option value="">SELECT DESTINATION</option>
+                        </select>
+                    </div>
+                    <div class="dest-dist" id="dest-dist">-- m</div>
+                </div>
+                
+                <div class="safety-circles">
+                    <div class="circle-container">
+                        <div class="circle-indicator green" id="circle-alert">
+                            <div class="circle-symbol" id="val-alert-symbol"></div>
+                            <div class="circle-sub" id="val-alert-text">CLEAR</div>
+                        </div>
+                        <div class="circle-label">ALERT</div>
+                    </div>
+                    <div class="circle-container">
+                        <div class="circle-indicator green" id="circle-speed">
+                            <div class="circle-value" id="val-speed">30</div>
+                            <div class="circle-sub">km/h</div>
+                        </div>
+                        <div class="circle-label">SAFE SPEED</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    const map = L.map('map', {
+        zoomControl: false,
+        attributionControl: false
+    }).setView([18.682072, 81.193572], 17);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+    let isFollowMode = true;
+    let currentVehicleMarker = null;
+    let otherVehicleMarkers = {};
+    let mapHeading = 0;
+    
+    const activeRouteLayer = L.layerGroup().addTo(map);
+    const corridorLayer = L.layerGroup().addTo(map);
+    const candidateLayer = L.layerGroup().addTo(map);
+    
+    let lastAlertType = "CLEAR";
+    let audioCtx = null;
+    let audioUnlocked = false;
+    
+    function initAudio() {
+        if (audioUnlocked) return;
+        
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+        
+        // Silent oscillator trick for iOS Safari to unlock Web Audio
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        gain.gain.value = 0;
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(0);
+        osc.stop(0.01);
+        
+        audioUnlocked = true;
+        const banner = document.getElementById('audio-banner');
+        if (banner) banner.style.display = 'none';
+    }
+    
+    // Bind to all interaction types
+    document.body.addEventListener('click', initAudio, {once: true});
+    document.body.addEventListener('touchstart', initAudio, {once: true});
+    document.body.addEventListener('keydown', initAudio, {once: true});
+
+    function playBeep(times) {
+        if (!audioCtx) return;
+        let delay = 0;
+        for(let i=0; i<times; i++) {
+            setTimeout(() => {
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                oscillator.type = 'square';
+                oscillator.frequency.setValueAtTime(800, audioCtx.currentTime);
+                gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                oscillator.start();
+                gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.1);
+                oscillator.stop(audioCtx.currentTime + 0.1);
+            }, delay);
+            delay += 250;
+        }
+    }
+    
+    // UI Listeners
+    document.getElementById('btn-follow').addEventListener('click', (e) => {
+        isFollowMode = !isFollowMode;
+        e.target.className = isFollowMode ? "round-btn active" : "round-btn";
+    });
+
+    document.getElementById('btn-recenter').addEventListener('click', () => {
+        isFollowMode = true;
+        document.getElementById('btn-follow').className = "round-btn active";
+    });
+
+    document.getElementById('vehicle-select').addEventListener('change', async (e) => {
+        await fetch('/api/navigation/vehicle', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ vehicle_id: e.target.value })
+        });
+    });
+
+    document.getElementById('dest-select').addEventListener('change', async (e) => {
+        await fetch('/api/navigation/destination', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ destination_name: e.target.value })
+        });
+    });
+
+    async function initLists() {
+        try {
+            const dRes = await fetch('/api/navigation/destinations');
+            const dests = await dRes.json();
+            const dSel = document.getElementById('dest-select');
+            dSel.innerHTML = '<option value="">SELECT DESTINATION</option>' + 
+                dests.map(d => `<option value="${d.name}">${d.name}</option>`).join('');
+
+            const vRes = await fetch('/api/vehicles');
+            const vehs = await vRes.json();
+            const vSel = document.getElementById('vehicle-select');
+            vSel.innerHTML = vehs.map(v => `<option value="${v.vehicle_id}">${v.vehicle_id}</option>`).join('');
+            if(vehs.length > 0) {
+                await fetch('/api/navigation/vehicle', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ vehicle_id: vehs[0].vehicle_id })
+                });
+            }
+        } catch(e) {}
+    }
+
+    // Helper for Marker icon
+    function getArrowIcon(colorClass, heading) {
+        return L.divIcon({
+            className: 'custom-arrow',
+            html: `<div class="arrow-icon ${colorClass}" style="transform: rotate(${heading}deg);"></div>`,
+            iconSize: [24, 30],
+            iconAnchor: [12, 15]
+        });
+    }
+
+    async function updateNavigation() {
+        try {
+            const stateRes = await fetch('/api/navigation/state');
+            const state = await stateRes.json();
+
+            if (!state.current_vehicle) {
+                // Try refresh
+                const vRes = await fetch('/api/vehicles');
+                const vehs = await vRes.json();
+                if(vehs.length > 0) {
+                    const vSel = document.getElementById('vehicle-select');
+                    vSel.innerHTML = vehs.map(v => `<option value="${v.vehicle_id}">${v.vehicle_id}</option>`).join('');
+                    await fetch('/api/navigation/vehicle', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ vehicle_id: vehs[0].vehicle_id })
+                    });
+                }
+                return;
+            }
+
+            // Sync Dropdowns
+            const vSel = document.getElementById('vehicle-select');
+            if (vSel.value !== state.current_vehicle) vSel.value = state.current_vehicle;
+            const dSel = document.getElementById('dest-select');
+            const actDest = state.destination ? state.destination.name : "";
+            if (dSel.value !== actDest) dSel.value = actDest;
+
+            // Update UI elements
+            if (state.distance_to_destination_m !== null) {
+                document.getElementById('dest-dist').innerText = Math.round(state.distance_to_destination_m) + " m";
+                if (state.distance_to_destination_m < 15 && state.destination) {
+                    document.getElementById('maneuver-icon').innerText = "✓";
+                    document.getElementById('maneuver-text').innerHTML = `<div style="font-size: 0.8rem;">ARRIVED</div><div style="font-size: 1rem;">${state.destination.name}</div>`;
+                }
+            }
+            
+            // Maneuver Card
+            const mCard = document.getElementById('maneuver-card');
+            if (state.next_maneuver) {
+                mCard.style.display = 'flex';
+                document.getElementById('maneuver-dist').innerText = state.maneuver_distance_m + ' m';
+                document.getElementById('maneuver-icon').innerText = state.maneuver_direction;
+                document.getElementById('maneuver-text').innerText = state.next_maneuver;
+            } else {
+                mCard.style.display = 'none';
+            }
+
+            // Ghat Indicator
+            if (state.road_type === "GHAT") {
+                document.getElementById('ghat-indicator').style.display = "block";
+                let grad = state.gradient_percent ? `(${state.gradient_percent > 0 ? '+':''}${state.gradient_percent}%)` : "";
+                document.getElementById('ghat-grad').innerText = grad;
+            } else {
+                document.getElementById('ghat-indicator').style.display = "none";
+            }
+
+            // Update Safety Circles
+            const cSpeed = document.getElementById('circle-speed');
+            const vSpeed = document.getElementById('val-speed');
+            const cAlert = document.getElementById('circle-alert');
+            const vAlertSym = document.getElementById('val-alert-symbol');
+            const vAlertTxt = document.getElementById('val-alert-text');
+            
+            if (state.safety_decision) {
+                const sd = state.safety_decision;
+                vSpeed.innerText = sd.permitted_speed_kmh === 0 ? "STOP" : Math.round(sd.permitted_speed_kmh);
+                
+                // Safe Speed Color
+                cSpeed.className = 'circle-indicator';
+                if (sd.permitted_speed_kmh >= 30) cSpeed.classList.add('green');
+                else if (sd.permitted_speed_kmh > 0) cSpeed.classList.add('amber');
+                else cSpeed.classList.add('red');
+                
+                // Alert Indicator
+                vAlertTxt.innerText = sd.active_alert ? sd.active_alert.alert_type : "CLEAR";
+                
+                // Determine symbol and color based on alert
+                cAlert.className = 'circle-indicator';
+                const alertType = sd.active_alert ? sd.active_alert.alert_type : "CLEAR";
+                const sev = sd.active_alert ? sd.active_alert.severity : "CLEAR";
+                
+                if (alertType !== "CLEAR" && alertType !== lastAlertType) {
+                    playBeep((alertType === "PEDESTRIAN" || alertType === "STOP" || alertType === "VEHICLE") ? 2 : 1);
+                }
+                lastAlertType = alertType;
+                
+                if (sev === "CRITICAL" || alertType === "PEDESTRIAN" || alertType === "FOG" || alertType === "ROAD BLOCKED") cAlert.classList.add('red');
+                else if (sev === "WARNING" || sev === "CAUTION") cAlert.classList.add('amber');
+                else cAlert.classList.add('green');
+                
+                switch(alertType) {
+                    case "PEDESTRIAN": vAlertSym.innerHTML = '<i class="fa-solid fa-person-walking"></i>'; break;
+                    case "VEHICLE": vAlertSym.innerHTML = '<i class="fa-solid fa-car-side"></i>'; break;
+                    case "FOG": vAlertSym.innerHTML = '<i class="fa-solid fa-smog"></i>'; break;
+                    case "SHARP TURN": vAlertSym.innerHTML = '<i class="fa-solid fa-arrow-turn-right"></i>'; break;
+                    case "STOP": vAlertSym.innerHTML = '<i class="fa-solid fa-hand"></i>'; break;
+                    default: vAlertSym.innerHTML = ""; break;
+                }
+            }
+            
+            if(state.visibility === "SIMULATED" || state.visibility === "FOG") {
+                document.getElementById('fog-overlay').style.display = 'block';
+            } else {
+                document.getElementById('fog-overlay').style.display = 'none';
+            }
+            
+            document.getElementById('dbg-gps').innerText = 'GPS: ' + (state.data_sources.gps || 'UNKNOWN');
+
+            // Nearby Vehicles
+            const nearbyList = document.getElementById('nearby-list');
+            if (state.nearby_vehicles && state.nearby_vehicles.length > 0) {
+                nearbyList.innerHTML = state.nearby_vehicles.map(v => `
+                    <div class="nearby-item">
+                        <div style="font-weight:bold;">${v.vehicle_id}</div>
+                        <div style="display:flex; gap:10px; color:#aaa;">
+                            <span>${v.distance_m} m</span>
+                            <span>${v.speed_kmh !== null ? v.speed_kmh.toFixed(0) : '--'} km/h</span>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                nearbyList.innerHTML = '<div style="font-size:0.8rem; color:#666;">NO VEHICLES WITHIN 500 M</div>';
+            }
+
+            // Map and Camera Logic (Heading Up)
+            if (state.current_position) {
+                const latlng = [state.current_position.latitude, state.current_position.longitude];
+                const heading = state.heading || 0;
+                
+                // Fetch other vehicles early to use for bounds calculation
+                const mvRes = await fetch('/api/map/vehicles');
+                const mapVehicles = await mvRes.json();
+                
+                if (isFollowMode) {
+                    // Update map wrapper rotation
+                    mapHeading = heading;
+                    document.getElementById('map-wrapper').style.transform = `rotate(${-mapHeading}deg)`;
+                    
+                    if (state.camera_state === "CLOSE_NAVIGATION") {
+                        map.flyTo(latlng, 18, {animate: true, duration: 1});
+                    } else if (state.camera_state === "VEHICLE_CONTEXT") {
+                        let bounds = L.latLngBounds([latlng]);
+                        for (let v of state.nearby_vehicles) {
+                            const pos = mapVehicles[v.vehicle_id];
+                            if (pos) {
+                                bounds.extend([pos.latitude, pos.longitude]);
+                            }
+                        }
+                        // Add some reasonable padding so UI elements don't overlap the trucks
+                        map.flyToBounds(bounds, {
+                            paddingTopLeft: [50, 150],
+                            paddingBottomRight: [50, 250],
+                            maxZoom: 18,
+                            animate: true,
+                            duration: 1
+                        });
+                    }
+                }
+
+                if (!currentVehicleMarker) {
+                    currentVehicleMarker = L.marker(latlng, {
+                        icon: getArrowIcon('arrow-green', heading),
+                        zIndexOffset: 1000
+                    }).addTo(map);
+                } else {
+                    currentVehicleMarker.setLatLng(latlng);
+                    currentVehicleMarker.setIcon(getArrowIcon('arrow-green', heading));
+                }
+                
+                // Other Vehicles Map Logic
+                for (let vid in otherVehicleMarkers) {
+                    if (vid === state.current_vehicle || !mapVehicles[vid]) {
+                        map.removeLayer(otherVehicleMarkers[vid]);
+                        delete otherVehicleMarkers[vid];
+                    }
+                }
+
+                for (let v of state.nearby_vehicles) {
+                    const vid = v.vehicle_id;
+                    const pos = mapVehicles[vid];
+                    if (pos) {
+                        const v_latlng = [pos.latitude, pos.longitude];
+                        const v_heading = v.heading_deg || 0;
+                        if (!otherVehicleMarkers[vid]) {
+                            otherVehicleMarkers[vid] = L.marker(v_latlng, {
+                                icon: getArrowIcon('arrow-red', v_heading),
+                                zIndexOffset: 500
+                            }).addTo(map);
+                        } else {
+                            otherVehicleMarkers[vid].setLatLng(v_latlng);
+                            otherVehicleMarkers[vid].setIcon(getArrowIcon('arrow-red', v_heading));
+                        }
+                    }
+                }
+            }
+
+            // Routes
+            activeRouteLayer.clearLayers();
+            if (state.active_route) {
+                const latlngs = state.active_route.path_coordinates.map(p => [p.latitude, p.longitude]);
+                L.polyline(latlngs, {
+                    color: '#38bdf8', // Bright blue
+                    weight: 8,
+                    opacity: 0.9,
+                    lineJoin: 'round'
+                }).addTo(activeRouteLayer);
+
+                // If Ghat, place a warning marker on the map in the middle of the route
+                if (state.road_type === "GHAT" && latlngs.length > 2) {
+                    const midIndex = Math.floor(latlngs.length / 2);
+                    const ghatIcon = L.divIcon({
+                        className: 'ghat-map-icon',
+                        html: '<div style="background: rgba(255,50,0,0.9); border: 2px solid white; color: white; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: bold; box-shadow: 0 4px 8px rgba(0,0,0,0.5);">⚠</div>',
+                        iconSize: [32, 32],
+                        iconAnchor: [16, 16]
+                    });
+                    L.marker(latlngs[midIndex], { icon: ghatIcon }).addTo(activeRouteLayer);
+                }
+            }
+
+            const rcRes = await fetch('/api/map/road_corridors');
+            const corridors = await rcRes.json();
+            corridorLayer.clearLayers();
+            if (corridors.length > 0) {
+                const clatlngs = corridors.map(p => [p.latitude, p.longitude]);
+                L.polyline(clatlngs, {
+                    color: '#22c55e',
+                    weight: 12,
+                    opacity: 0.3,
+                    lineJoin: 'round'
+                }).addTo(corridorLayer);
+            }
+
+            const candRes = await fetch('/api/map/routes');
+            const candidates = await candRes.json();
+            candidateLayer.clearLayers();
+            candidates.forEach(cand => {
+                if (state.active_route && cand.route_id === state.active_route.route_id) return;
+                const latlngs = cand.path_coordinates.map(p => [p.latitude, p.longitude]);
+                L.polyline(latlngs, {
+                    color: '#000',
+                    weight: 4,
+                    dashArray: '8, 8',
+                    opacity: 0.8
+                }).addTo(candidateLayer);
+            });
+
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    initLists().then(() => {
+        // Virtual Demo Controls
+        let virtualModeOn = true;
+        document.getElementById('btn-virtual-toggle').addEventListener('click', async (e) => {
+            virtualModeOn = !virtualModeOn;
+            e.target.innerText = virtualModeOn ? "ON" : "OFF";
+            e.target.style.background = virtualModeOn ? "var(--accent-blue)" : "#333";
+            
+            await fetch('/api/navigation/virtual-mode', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ enabled: virtualModeOn })
+            });
+        });
+
+        document.getElementById('btn-virtual-reset').addEventListener('click', async () => {
+            await fetch('/api/navigation/virtual-reset', { method: 'POST' });
+        });
+
+        setInterval(updateNavigation, 1000);
+        updateNavigation();
+    });
+
+    map.on('dragstart', () => {
+        isFollowMode = false;
+        document.getElementById('btn-follow').className = "round-btn";
+        // Optionally, reset rotation when manual panning starts so the user isn't confused
+        document.getElementById('map-wrapper').style.transform = `rotate(0deg)`;
+    });
+
+</script>
+</body>
+</html>

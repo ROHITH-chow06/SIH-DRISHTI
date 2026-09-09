@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPS Sender Prototype</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: auto; }
+        .card { padding: 20px; border-radius: 8px; border: 1px solid #ccc; margin-bottom: 20px; }
+        .status { font-weight: bold; padding: 10px; border-radius: 4px; }
+        .waiting { background: #fff3cd; color: #856404; }
+        .connected { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; }
+        input { font-size: 16px; padding: 5px; margin-bottom: 10px; width: 100%; box-sizing: border-box; }
+    </style>
+</head>
+<body>
+    <h2>DRISHTI GPS Sender (Prototype)</h2>
+    
+    <div class="card">
+        <label>Server URL:</label>
+        <input type="text" id="serverUrl" value="">
+        <label>Vehicle ID:</label>
+        <input type="text" id="vehicleId" value="TRUCK_01">
+        <br><br>
+        <button id="startBtn">Start GPS Tracking</button>
+        <button id="stopBtn" disabled>Stop</button>
+    </div>
+
+    <div class="card" id="statusCard">
+        <div id="statusIndicator" class="status waiting">GPS: WAITING</div>
+        <p><strong>Latitude:</strong> <span id="lat">-</span></p>
+        <p><strong>Longitude:</strong> <span id="lon">-</span></p>
+        <p><strong>Altitude (m):</strong> <span id="alt">-</span></p>
+        <p><strong>Accuracy (m):</strong> <span id="acc">-</span></p>
+        <p><strong>Speed (km/h):</strong> <span id="spd">-</span></p>
+        <p><strong>Heading (deg):</strong> <span id="hdg">-</span></p>
+    </div>
+
+    <script>
+        // Auto-detect server URL
+        const defaultUrl = window.location.protocol === 'file:' 
+            ? 'http://localhost:8000/api/telemetry' 
+            : window.location.origin + '/api/telemetry';
+        document.getElementById('serverUrl').value = defaultUrl;
+
+        let watchId = null;
+
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const statusInd = document.getElementById('statusIndicator');
+
+        function updateStatus(state, msg) {
+            statusInd.className = 'status ' + state;
+            statusInd.textContent = msg;
+        }
+
+        function sendTelemetry(position) {
+            const serverUrl = document.getElementById('serverUrl').value;
+            const vehicleId = document.getElementById('vehicleId').value;
+            
+            const coords = position.coords;
+            const data = {
+                vehicle_id: vehicleId,
+                latitude: coords.latitude,
+                longitude: coords.longitude,
+                altitude: coords.altitude,
+                accuracy_m: coords.accuracy,
+                speed_kmh: coords.speed ? coords.speed * 3.6 : null, // m/s to km/h
+                heading_deg: coords.heading,
+                timestamp: new Date(position.timestamp).toISOString()
+            };
+
+            // Update UI
+            document.getElementById('lat').innerText = data.latitude.toFixed(6);
+            document.getElementById('lon').innerText = data.longitude.toFixed(6);
+            document.getElementById('alt').innerText = data.altitude ? data.altitude.toFixed(2) : 'None';
+            document.getElementById('acc').innerText = data.accuracy_m ? data.accuracy_m.toFixed(2) : 'None';
+            document.getElementById('spd').innerText = data.speed_kmh ? data.speed_kmh.toFixed(2) : 'None';
+            document.getElementById('hdg').innerText = data.heading_deg ? data.heading_deg.toFixed(2) : 'None';
+
+            fetch(serverUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            }).then(res => {
+                if(res.ok) {
+                    updateStatus('connected', 'GPS: CONNECTED & SENDING');
+                } else {
+                    updateStatus('error', 'SERVER ERROR: ' + res.status);
+                }
+            }).catch(err => {
+                updateStatus('error', 'CONNECTION ERROR');
+                console.error(err);
+            });
+        }
+
+        startBtn.onclick = () => {
+            if (!navigator.geolocation) {
+                updateStatus('error', 'GPS NOT SUPPORTED ON THIS DEVICE');
+                return;
+            }
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+            updateStatus('waiting', 'REQUESTING PERMISSION...');
+
+            watchId = navigator.geolocation.watchPosition(
+                sendTelemetry,
+                (error) => {
+                    updateStatus('error', 'GPS ERROR: ' + error.message);
+                },
+                { enableHighAccuracy: true, maximumAge: 0 }
+            );
+        };
+
+        stopBtn.onclick = () => {
+            if (watchId !== null) {
+                navigator.geolocation.clearWatch(watchId);
+                watchId = null;
+            }
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            updateStatus('waiting', 'GPS: STOPPED');
+        };
+    </script>
+</body>
+</html>

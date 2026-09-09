@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>DRISHTI Simulator Dashboard</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --panel-bg: #1e293b;
+            --text-color: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+            --primary: #3b82f6;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 1.5em;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+        }
+        .panel h2 {
+            margin-top: 0;
+            font-size: 1.2em;
+            color: var(--primary);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+        .control-group {
+            margin-bottom: 15px;
+        }
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: var(--text-muted);
+            font-size: 0.9em;
+        }
+        .btn-group {
+            display: flex;
+            gap: 10px;
+        }
+        .btn-group button {
+            flex: 1;
+            padding: 10px;
+            background: var(--bg-color);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.2s;
+        }
+        .btn-group button.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            font-weight: bold;
+        }
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .stat-label {
+            color: var(--text-muted);
+        }
+        .stat-value {
+            font-weight: bold;
+        }
+        .chain-box {
+            background: var(--bg-color);
+            padding: 10px;
+            border-radius: 4px;
+            text-align: center;
+            margin-bottom: 5px;
+            border: 1px solid var(--border-color);
+        }
+        .chain-arrow {
+            text-align: center;
+            color: var(--text-muted);
+            margin-bottom: 5px;
+        }
+        .ab-demo {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .ab-box {
+            flex: 1;
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+        }
+        .ab-box h3 {
+            margin-top: 0;
+            font-size: 1em;
+            color: var(--text-muted);
+        }
+        .ab-speed {
+            font-size: 2.5em;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .ab-box.active {
+            border-color: var(--success);
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+        .badge-clear { background: var(--success); color: white; }
+        .badge-caution { background: var(--warning); color: white; }
+        .badge-slow { background: var(--warning); color: white; }
+        .badge-stop { background: var(--danger); color: white; }
+        
+        .disclaimer {
+            font-size: 0.8em;
+            color: var(--warning);
+            text-align: center;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>DRISHTI Dual-Constraint Governor Simulator</h1>
+        <div><a href="/map" style="color: var(--primary);">View Living Map</a></div>
+    </div>
+
+    <div class="container">
+        <!-- Controls Panel -->
+        <div class="panel">
+            <h2>Simulated Environmental Conditions</h2>
+            <div class="disclaimer">⚠️ Values below are software-simulated for demonstration of Governor architecture. Do NOT treat as real field measurements.</div>
+            
+            <div class="control-group" style="margin-top: 20px;">
+                <label>Visibility Sensor (Simulated LDR/Camera)</label>
+                <div class="btn-group" id="vis-group">
+                    <button class="active" onclick="setCondition('visibility', 'CLEAR')">CLEAR</button>
+                    <button onclick="setCondition('visibility', 'FOG')">FOG</button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Road Surface (Simulated)</label>
+                <div class="btn-group" id="road-group">
+                    <button class="active" onclick="setCondition('road', 'DRY')">DRY</button>
+                    <button onclick="setCondition('road', 'WET')">WET</button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Obstacle Radar (Simulated)</label>
+                <div class="btn-group" id="obs-group">
+                    <button class="active" onclick="setCondition('obstacle', 'NONE')">NONE</button>
+                    <button onclick="setCondition('obstacle', 'PEDESTRIAN')">PEDESTRIAN</button>
+                    <button onclick="setCondition('obstacle', 'OBSTACLE')">OBSTACLE</button>
+                </div>
+            </div>
+            
+            <div style="margin-top: 30px; font-size: 0.85em; color: var(--text-muted);">
+                <i>Governor selects the most restrictive active constraint.</i>
+            </div>
+            
+            <div class="ab-demo">
+                <div class="ab-box">
+                    <h3>EYESIGHT ONLY (Baseline)</h3>
+                    <div class="ab-speed" style="color: var(--danger);">5 <span style="font-size: 0.4em;">km/h</span></div>
+                    <div style="font-size: 0.8em; color: var(--text-muted);">SIMULATION / DEMO</div>
+                </div>
+                <div class="ab-box active">
+                    <h3>WITH DRISHTI</h3>
+                    <div class="ab-speed" id="drishti-speed" style="color: var(--success);">-- <span style="font-size: 0.4em;">km/h</span></div>
+                    <div style="font-size: 0.8em; color: var(--text-muted);">SIMULATION / DEMO</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard Panel -->
+        <div class="panel">
+            <h2>Governor Decision Dashboard</h2>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                <div>
+                    <div class="stat-row">
+                        <span class="stat-label">Governor State</span>
+                        <span class="stat-value" id="gov-state">--</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Visibility Limit</span>
+                        <span class="stat-value" id="vis-limit">-- km/h</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Road Cond Limit</span>
+                        <span class="stat-value" id="road-limit">-- km/h</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Final Safe Speed</span>
+                        <span class="stat-value" id="final-speed" style="color: var(--primary);">-- km/h</span>
+                    </div>
+                </div>
+                <div>
+                    <div class="chain-box">GPS POSITION</div>
+                    <div class="chain-arrow">↓</div>
+                    <div class="chain-box" id="map-status">LIVING MAP</div>
+                    <div class="chain-arrow">↓</div>
+                    <div class="chain-box">VISIBILITY <span id="chain-vis" style="color: var(--primary); float:right;">--</span></div>
+                    <div class="chain-arrow">↓</div>
+                    <div class="chain-box">ROAD CONDITION <span id="chain-road" style="color: var(--primary); float:right;">--</span></div>
+                    <div class="chain-arrow">↓</div>
+                    <div class="chain-box" style="border-color: var(--primary); font-weight: bold;">SAFE SPEED <span id="chain-final" style="color: var(--success); float:right;">--</span></div>
+                </div>
+            </div>
+            
+            <div class="stat-row" style="flex-direction: column; border-bottom: none;">
+                <span class="stat-label">Decision Reason</span>
+                <span class="stat-value" id="gov-reason" style="margin-top: 5px;">--</span>
+            </div>
+            
+            <h3 style="margin-top: 30px; font-size: 1em; border-bottom: 1px solid var(--border-color); padding-bottom: 5px;">Live Context</h3>
+            <div class="stat-row">
+                <span class="stat-label">Active Vehicle</span>
+                <span class="stat-value" id="ctx-vehicle">--</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Vehicle GPS</span>
+                <span class="stat-value" id="ctx-gps">--</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Candidate Routes</span>
+                <span class="stat-value" id="ctx-routes">--</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Route Provenance</span>
+                <span class="stat-value">DEMO_CANDIDATE</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let conditions = {
+            visibility: "CLEAR",
+            road: "DRY",
+            obstacle: "NONE"
+        };
+
+        async function setCondition(key, value) {
+            conditions[key] = value;
+            
+            // update UI buttons
+            const group = document.getElementById(`${key.substring(0,3)}-group`);
+            if(group) {
+                Array.from(group.children).forEach(btn => btn.classList.remove('active'));
+                Array.from(group.children).forEach(btn => {
+                    if (btn.innerText === value) btn.classList.add('active');
+                });
+            }
+
+            // POST to backend
+            try {
+                await fetch('/api/simulator/conditions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(conditions)
+                });
+                updateDashboard();
+            } catch (e) {
+                console.error("Error setting condition", e);
+            }
+        }
+
+        async function updateDashboard() {
+            try {
+                const res = await fetch('/api/governor/state');
+                if (res.ok) {
+                    const data = await res.json();
+                    
+                    let badgeClass = 'badge-clear';
+                    if (data.state === 'CAUTION') badgeClass = 'badge-caution';
+                    if (data.state === 'SLOW') badgeClass = 'badge-slow';
+                    if (data.state === 'STOP') badgeClass = 'badge-stop';
+                    
+                    document.getElementById('gov-state').innerHTML = `<span class="badge ${badgeClass}">${data.state}</span>`;
+                    document.getElementById('vis-limit').innerText = `${data.visibility_limit_kmh} km/h`;
+                    document.getElementById('road-limit').innerText = `${data.road_condition_limit_kmh} km/h`;
+                    document.getElementById('final-speed').innerText = `${data.final_speed_limit_kmh} km/h`;
+                    document.getElementById('gov-reason').innerText = data.reason;
+                    
+                    let speedColor = 'var(--success)';
+                    if (data.final_speed_limit_kmh === 0) speedColor = 'var(--danger)';
+                    else if (data.final_speed_limit_kmh < 30) speedColor = 'var(--warning)';
+                    document.getElementById('drishti-speed').innerHTML = `${data.final_speed_limit_kmh} <span style="font-size: 0.4em;">km/h</span>`;
+                    document.getElementById('drishti-speed').style.color = speedColor;
+                    
+                    document.getElementById('chain-vis').innerText = conditions.visibility;
+                    document.getElementById('chain-road').innerText = conditions.road;
+                    document.getElementById('chain-final').innerText = `${data.final_speed_limit_kmh} km/h`;
+                    document.getElementById('chain-final').style.color = speedColor;
+                }
+
+                // fetch vehicle context
+                const vRes = await fetch('/api/vehicles');
+                if (vRes.ok) {
+                    const vehicles = await vRes.json();
+                    if (vehicles.length > 0) {
+                        const v = vehicles[0]; // just show first one
+                        document.getElementById('ctx-vehicle').innerText = v.vehicle_id;
+                        document.getElementById('ctx-gps').innerText = `${v.position.latitude.toFixed(5)}, ${v.position.longitude.toFixed(5)}`;
+                    } else {
+                        document.getElementById('ctx-vehicle').innerText = "Waiting for telemetry...";
+                        document.getElementById('ctx-gps').innerText = "--";
+                    }
+                }
+                
+                // fetch routes context
+                const rRes = await fetch('/api/map/routes');
+                if (rRes.ok) {
+                    const routes = await rRes.json();
+                    const valCount = routes.filter(r => r.status === 'VALIDATED').length;
+                    document.getElementById('ctx-routes').innerText = `${routes.length} loaded, ${valCount} VALIDATED`;
+                }
+            } catch (e) {
+                console.error("Dashboard update failed", e);
+            }
+        }
+
+        // Initialize state on load
+        fetch('/api/simulator/state').then(res => res.json()).then(data => {
+            conditions = data;
+            setCondition('visibility', conditions.visibility);
+            setCondition('road', conditions.road);
+            setCondition('obstacle', conditions.obstacle);
+        });
+
+        // Poll every 2 seconds for vehicle updates
+        setInterval(updateDashboard, 2000);
+        updateDashboard();
+    </script>
+</body>
+</html>
