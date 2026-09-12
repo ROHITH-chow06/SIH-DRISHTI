@@ -2,6 +2,10 @@
 
 > A multidisciplinary prototype combining Vehicle-to-Vehicle (V2V) communication, radar sensing, visibility sensing, embedded control, mechatronics, telemetry, mapping, simulation, and safety-oriented decision logic.
 
+<p align="center">
+  <img src="01_vehicle_prototype.jpeg" alt="DRISHTI Vehicle Prototype" width="850">
+</p>
+
 ## Overview
 
 DRISHTI explores how multiple vehicles can share safety information and respond to hazards cooperatively. The prototype combines an ESP32-based physical vehicle system with a computer-side telemetry and navigation stack.
@@ -187,7 +191,13 @@ The engineering workflow was:
 
 The physical prototype demonstrates the mechatronics side of DRISHTI using an ESP32 vehicle controller, mmWave radar, LDR visibility sensor, motor driver, relay, LEDs, alert output, DC motors and a second ESP32 receiver.
 
-The repository's `assets/` directory is intended for prototype photographs and system visuals.
+<p align="center">
+  <img src="02_v2v_receiver.jpeg" alt="DRISHTI V2V Receiver Hardware" width="850">
+</p>
+
+<p align="center">
+  <img src="03_integrated_vehicle.jpeg" alt="DRISHTI Integrated Vehicle Prototype" width="850">
+</p>
 
 ## System Architecture
 
@@ -312,10 +322,10 @@ firmware/
 └── v2v_receiver/
     └── v2v_receiver.ino
 
-assets/
-├── 01_vehicle_prototype.jpeg
-├── 02_v2v_receiver.jpeg
-└── 03_integrated_vehicle.jpeg
+01_vehicle_prototype.jpeg
+02_v2v_receiver.jpeg
+03_integrated_vehicle.jpeg
+README.md
 ```
 
 ## Core Learning Outcome
