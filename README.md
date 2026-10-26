@@ -275,9 +275,9 @@ The system was developed incrementally so that individual subsystems could be va
 13. Candidate-route modelling
 14. Navigation/Governor architecture
 
-## Mapping to the Intelligent V2V Braking Internship
+## --
 
-| Internship Requirement | DRISHTI Skill Match |
+|  Requirement | DRISHTI Skill Match |
 |---|---|
 | Automotive systems | ADAS/V2V concepts, vehicle sensing, braking prototype |
 | Simulation | Vehicle/safety simulation and Governor modelling |
