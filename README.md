@@ -3,7 +3,9 @@
 > A multidisciplinary prototype combining Vehicle-to-Vehicle (V2V) communication, radar sensing, visibility sensing, embedded control, mechatronics, telemetry, mapping, simulation, and safety-oriented decision logic.
 
 <p align="center">
-  <img src="01_vehicle_prototype.jpeg" alt="DRISHTI Vehicle Prototype" width="850">
+  <a href="https://youtu.be/oPxJh5QfYT0" target="_blank" rel="noopener noreferrer">
+    <img src="drishti-prototype.jpg" alt="DRISHTI physical vehicle prototype — click to watch the full demonstration on YouTube" width="850">
+  </a>
   <br><br>
   <a href="https://youtu.be/oPxJh5QfYT0" target="_blank" rel="noopener noreferrer">
     <strong>▶ WATCH THE FULL DRISHTI PROTOTYPE DEMONSTRATION ON YOUTUBE</strong>
