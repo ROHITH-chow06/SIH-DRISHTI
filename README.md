@@ -4,6 +4,10 @@
 
 <p align="center">
   <img src="01_vehicle_prototype.jpeg" alt="DRISHTI Vehicle Prototype" width="850">
+  <br><br>
+  <a href="https://youtu.be/oPxJh5QfYT0" target="_blank" rel="noopener noreferrer">
+    <strong>▶ WATCH THE FULL DRISHTI PROTOTYPE DEMONSTRATION ON YOUTUBE</strong>
+  </a>
 </p>
 
 ## Overview
