@@ -279,24 +279,6 @@ The system was developed incrementally so that individual subsystems could be va
 
 ## --
 
-|  Requirement | DRISHTI Skill Match |
-|---|---|
-| Automotive systems | ADAS/V2V concepts, vehicle sensing, braking prototype |
-| Simulation | Vehicle/safety simulation and Governor modelling |
-| Mechatronics | ESP32, sensors, motors, L293D, relay, physical prototype |
-| Programming / coding | Arduino C++, Python, FastAPI, JavaScript, MQTT |
-| Creating drawings, models or designs | System architecture, physical vehicle, mapping and safety models |
-| Mathematical problem solving | Coordinate processing, distance calculation, thresholds and stopping-distance analysis |
-| Controlled experiments | Sensor, communication, visibility and braking tests |
-| Laboratory equipment | ESP32, radar, LDR, motors and electronics |
-| Data analysis | Sensor readings, telemetry, GPS traces and test results |
-| Research literature / documents | Development-record analysis and iterative implementation |
-| Teamwork | Embedded, backend, mapping and navigation integration |
-| Report writing | Build, debugging, architecture and validation documentation |
-| Supervisor discussions | Design review and technical presentation readiness |
-| Time management | Incremental development and subsystem validation |
-| Creative/self-motivated work | Iterative troubleshooting and system extension |
-
 ## Core Engineering Challenges
 
 **Radar:** UART configuration, binary frame synchronization, signed coordinate decoding, distance calculation and stale-data handling.
