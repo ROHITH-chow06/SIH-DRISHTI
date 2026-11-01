@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="https://youtu.be/oPxJh5QfYT0" target="_blank" rel="noopener noreferrer">
-    <img src="drishti-prototype.jpg" alt="DRISHTI physical vehicle prototype — click to watch the full demonstration on YouTube" width="850">
+    <img src="./PXL_20260927_121448247.MP.jpg" alt="DRISHTI physical vehicle prototype — click to watch the full demonstration on YouTube" width="850">
   </a>
   <br><br>
   <a href="https://youtu.be/oPxJh5QfYT0" target="_blank" rel="noopener noreferrer">
