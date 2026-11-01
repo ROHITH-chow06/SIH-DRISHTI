@@ -20,11 +20,7 @@ The vehicle node acquires obstacle information from an HLK-LD2450 mmWave radar a
 
 A second ESP32 receives the V2V message and demonstrates how a nearby vehicle can react to another vehicle's warning state. The wider software stack extends the prototype with Python telemetry, MQTT, GPS vehicle tracking, a Living Map, road-corridor accumulation, candidate-route modelling, and a supervisory navigation/Governor layer.
 
-## Why DRISHTI Fits Intelligent V2V Braking
 
-The project brings together the major technical areas expected in a V2V/ADAS research environment:
-
-**Automotive Systems → Embedded Systems → Sensors → Signal Processing → V2V Communication → Control → Mechatronics → Simulation → Backend Software → Telemetry → Mapping → Safety Logic → Testing → Documentation**
 
 ## Skills Demonstrated
 
